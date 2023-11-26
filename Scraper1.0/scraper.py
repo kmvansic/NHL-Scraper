@@ -272,10 +272,9 @@ class ESPNSportsObj:
 		count = len(gamelist)
 
 		#Add each game to the games list with initialized data
-		for game in range (1,count+1):
+		for game in range (1,count):
 			#find the urls of each game in the scoreboard. dissselect the recap headlines which are found similarly
 			#retrieve remaining game data  (not currently using homeScore or awayScore as it should start at 0-0).
-			url = ""
 			homeTeam = tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game) + ']/table//*[@class="shsNamD"]/a/text()')[1]
 			awayTeam = tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game) + ']/table//*[@class="shsNamD"]/a/text()')[0]
 			if (tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game) + ']/table//*[@class="shsTotD"][4]/text()')[0]=="Tot"):
@@ -289,8 +288,10 @@ class ESPNSportsObj:
 				proposedTime=""
 			else:
 				proposedTime=proposedTime[0]
-			url = get_ESPN_url(homeTeam)
-			newGame = Game(awayTeam,homeTeam,url,id,proposedTime)
+			id = get_ESPN_url(homeTeam)
+			url = "http://espn.go.com/nhl/boxscore?gameId=" + str(id)
+			gameNYT = game
+			newGame = Game(awayTeam,homeTeam,url,id,proposedTime,gameNYT)
 			self.gameList.append(newGame)
 		self.gameList = sorted(self.gameList, key=lambda Game: Game.gameStatusInt,reverse=False)
 
@@ -324,10 +325,13 @@ class ESPNSportsObj:
 
 	#load the current score of all games of the day and compare to previous values
 	def loadScoreboard(self):
-		#Retreive HTML for ESPN Scoreboard
-		printerObj.debugPrint("get request to " + 'http://espn.go.com/nhl/scoreboard?date='+getDateStr())
+		#Retreive HTML for NYT Scoreboard
+		
+		headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+
+		printerObj.debugPrint("get request to " + 'https://nytimes.stats.com/nhl/scoreboard.asp?day='+getDateStr())
 		try:
-			page = requests.get('http://espn.go.com/nhl/scoreboard?date='+getDateStr())
+			page = requests.get('https://nytimes.stats.com/nhl/scoreboard.asp?day='+getDateStr(), headers=headers)
 		except requests.exceptions.RequestException as e:
 			print("error in loadScoreboard")
 			return;
@@ -336,10 +340,12 @@ class ESPNSportsObj:
 		#For each game check score vs previous as well as game status
 		gameHasChanged=False
 		for game in self.gameList:
-			homeScore = tree.xpath('//*[@id="' +  game.gameId +  '-homeHeaderScore"]/text()')[0]
-			awayScore = tree.xpath('//*[@id="' +  game.gameId +  '-awayHeaderScore"]/text()')[0]
-			game.gameStatusStr=tree.xpath('//*[@id="'+ game.gameId + '-statusLine1"]/text()')[0]
-			proposedTime = tree.xpath('//*[@id="' +  game.gameId +  '-statusLine2Left"]/text()')
+			homeScore = tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game.gameNYT) + ']/table//*[@class="shsTotD"][4]/text()')[2]	
+			awayScore = tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game.gameNYT) + ']/table//*[@class="shsTotD"][4]/text()')[1]
+			game.gameStatusStr=tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game.gameNYT) + ']/table//*[@class="shsTimezone shsCTZone"]/text()')
+			if not game.gameStatusStr:
+				game.gameStatusStr=tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game.gameNYT) + ']/table//*[@class="shsTimezone shsCTZone"]/text()')
+			proposedTime = tree.xpath('//*[@id="shsScoreboard"]/div[2]/div[' + str(game.gameNYT) + ']/table/tbody/tr[1]/td/table/tbody/tr[1]/td[1]/text()')
 			game.setGameTime(proposedTime)
 			#homeScore = homeScore.encode("utf-8")
 			if (not homeScore[0].isdigit()):#\xa0
@@ -388,9 +394,10 @@ class ESPNSportsObj:
 	#find teams playing, scores, and most recent scoring play
 	def loadGame(self, game,scoringTeamName):
 		#Retreive the boxscore HTML from ESPN for a game
+		headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 		printerObj.debugPrint("get request to " + game.url)
 		try:
-			page = requests.get(game.url)
+			page = requests.get(game.url,headers=headers)
 		except requests.exceptions.RequestException as e:
 			print("error in load game")
 			time.sleep(5)
@@ -562,8 +569,7 @@ def get_ESPN_url(homeTeam):
 		#find the urls of each game in the scoreboard. dissselect the recap headlines which are found similarly
         espnHomeTeam = tree.xpath('//*[@id="' +  id +  '"]//div[1]/div/div[1]/div/div/ul/li[2]/div[1]/div[1]/a/div/text()')[0]
         if espnHomeTeam==bidictHomeTeam:
-            url = "http://espn.go.com/nhl/boxscore?gameId=" + str(id)
-            return url
+            return id
 
 #Test function that sends request directly to board
 def testBoardCommunication():

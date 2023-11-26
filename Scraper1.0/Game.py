@@ -40,13 +40,14 @@ class Game:
 		self.homeTeam = _homeTeam
 		self.url = _url
 
-	def __init__(self,_awayTeam,_homeTeam,_url,_gameId,_proposedTime):
+	def __init__(self,_awayTeam,_homeTeam,_url,_gameId,_proposedTime,_gameNYT):
 		#printerObj.debugPrint("running init on game")
 		self.awayTeam = _awayTeam
 		self.homeTeam = _homeTeam
 		self.url = _url
 		self.gameId = _gameId
 		self.setGameTime(_proposedTime)
+		self.gameNYT = _gameNYT
 
 	#checks current score of game(passed in) with previously documented values
 	#returns true if score has changed, else returns false
@@ -81,7 +82,7 @@ class Game:
 					self.gameTime = "Game Over"
 					self.gameStatusInt=13;
 					return;
-			self.gameTime=self.gameTime[0].partition(' ')[0]
+			self.gameTime=self.gameTime.partition(' ')[0]
 			if not (self.gameTime):
 				self.gameStatusInt=13;
 				return
@@ -93,7 +94,6 @@ class Game:
 			hour=self.gameTime.partition(':')[0]
 			minute=self.gameTime.partition(':')[2]
 			self.gameStatusInt = int(hour)+int(minute)/60;
-			hour=str(int(hour)-1)
 			if int(hour)<=0:
 				hour=str(12+int(hour))
 			self.gameTime=hour+":"+minute
